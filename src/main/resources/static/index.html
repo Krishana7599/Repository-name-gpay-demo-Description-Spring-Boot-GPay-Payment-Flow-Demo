@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Payment Demo</title>
+</head>
+<body>
+
+    <h1>Google Pay Demo</h1>
+
+    <label>Enter Amount:</label>
+    <input type="number" id="amount" value="10" />
+
+    <br><br>
+
+    <button onclick="payNow()">Pay Now</button>
+    <button onclick="payAgainSameKey()">Pay Again (Same Key)</button>
+    <button onclick="checkStatus()">Check Payment Status</button>
+    <button onclick="simulateWebhook()">Simulate Webhook</button>
+
+    <p id="result"></p>
+
+    <script>
+        let lastPaymentId = "";
+        let lastIdempotencyKey = "";
+
+        function generateIdempotencyKey() {
+            return "idem-" + Date.now();
+        }
+
+        function payNow() {
+            const amountValue = document.getElementById("amount").value;
+            lastIdempotencyKey = generateIdempotencyKey();
+
+            fetch("http://localhost:8081/api/payments/gpay", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    orderId: "ORD-1001",
+                    amount: parseFloat(amountValue),
+                    idempotencyKey: lastIdempotencyKey
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                lastPaymentId = data.paymentId;
+                document.getElementById("result").innerText =
+                    "Payment ID: " + data.paymentId +
+                    " | Idempotency Key: " + data.idempotencyKey +
+                    " | Amount: " + data.amount + " " + data.currency +
+                    " | Status: " + data.status +
+                    " | Message: " + data.message;
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function payAgainSameKey() {
+            if (!lastIdempotencyKey) {
+                alert("No previous idempotency key found. Click Pay Now first.");
+                return;
+            }
+
+            const amountValue = document.getElementById("amount").value;
+
+            fetch("http://localhost:8081/api/payments/gpay", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    orderId: "ORD-1001",
+                    amount: parseFloat(amountValue),
+                    idempotencyKey: lastIdempotencyKey
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                lastPaymentId = data.paymentId;
+                document.getElementById("result").innerText =
+                    "Payment ID: " + data.paymentId +
+                    " | Idempotency Key: " + data.idempotencyKey +
+                    " | Amount: " + data.amount + " " + data.currency +
+                    " | Status: " + data.status +
+                    " | Message: " + data.message;
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function checkStatus() {
+            if (!lastPaymentId) {
+                alert("No payment created yet.");
+                return;
+            }
+
+            fetch("http://localhost:8081/api/payments/" + lastPaymentId)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText =
+                    "Checked Payment ID: " + lastPaymentId +
+                    " | Idempotency Key: " + data.idempotencyKey +
+                    " | Amount: " + data.amount + " " + data.currency +
+                    " | Status: " + data.status +
+                    " | Message: " + data.message;
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function simulateWebhook() {
+            if (!lastPaymentId) {
+                alert("No payment created yet.");
+                return;
+            }
+
+            fetch("http://localhost:8081/api/payments/webhook/" + lastPaymentId, {
+                method: "POST"
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("result").innerText =
+                    "Webhook Updated Payment ID: " + lastPaymentId +
+                    " | Idempotency Key: " + data.idempotencyKey +
+                    " | Amount: " + data.amount + " " + data.currency +
+                    " | Status: " + data.status +
+                    " | Message: " + data.message;
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+    </script>
+
+</body>
+</html>
